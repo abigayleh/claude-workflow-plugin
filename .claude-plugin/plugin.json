@@ -1,0 +1,18 @@
+{
+  "name": "claude-workflow-plugin",
+  "version": "1.0.0",
+  "description": "An opinionated, stack-agnostic development pipeline for Claude Code: worktree-isolated branches, specialist subagents that write and review in separate contexts, and hooks that make the guardrails real rather than advisory. Claude takes work to ready-for-PR and stops — it never lands on the base branch.",
+  "author": {
+    "name": "Abigayle Hickey"
+  },
+  "repository": "https://github.com/abigaylehickey/claude-workflow-plugin",
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "code-review",
+    "git-worktree",
+    "subagents",
+    "hooks",
+    "pipeline"
+  ]
+}

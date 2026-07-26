@@ -1,0 +1,41 @@
+{
+  "description": "Guardrails that make the workflow's rules enforced rather than advisory: single-line commits on feature branches only, no push or merge to the base branch, and read-only agents that stay read-only.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/check-commit-msg.py\"",
+            "statusMessage": "Checking commit message and branch...",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard-push-main.py\"",
+            "statusMessage": "Checking push target...",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard-merge-main.py\"",
+            "statusMessage": "Checking merge target...",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard-agent-writes.py\"",
+            "statusMessage": "Checking agent write scope...",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

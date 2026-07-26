@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "abigayle-hickey",
+  "description": "Development workflow tooling for Claude Code.",
+  "owner": {
+    "name": "Abigayle Hickey"
+  },
+  "plugins": [
+    {
+      "name": "claude-workflow-plugin",
+      "description": "An opinionated, stack-agnostic development pipeline: worktree-isolated branches, specialist subagents that write and review in separate contexts, and hooks that make the guardrails enforced rather than advisory. Takes work to ready-for-PR and stops — it never lands on the base branch.",
+      "author": {
+        "name": "Abigayle Hickey"
+      },
+      "category": "workflow",
+      "keywords": [
+        "workflow",
+        "code-review",
+        "git-worktree",
+        "subagents",
+        "hooks"
+      ],
+      "source": "./"
+    }
+  ]
+}
