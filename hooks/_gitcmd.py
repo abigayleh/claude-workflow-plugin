@@ -29,16 +29,29 @@ DEFAULT_BRANCH_SH = os.path.join(
     "scripts", "default-branch.sh")
 
 
-def deny(reason):
-    """Block the tool call, surfacing `reason` back to the model."""
+OPT_OUT_MARKER = os.path.join(".claude", "allow-merge-to-base")
+
+
+def decide(decision, reason):
+    """Answer the permission system and stop. Saying nothing leaves it to ask."""
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
+            "permissionDecision": decision,
             "permissionDecisionReason": reason,
         }
     }))
     sys.exit(0)
+
+
+def deny(reason):
+    """Block the tool call, surfacing `reason` back to the model."""
+    decide("deny", reason)
+
+
+def allow(reason):
+    """Approve the tool call outright, skipping the permission prompt."""
+    decide("allow", reason)
 
 
 def payload():
@@ -75,6 +88,25 @@ def base_branch(cwd):
         return None
     # exit 3 = ambiguous, exit 1 = no branches. Only exit 0 is authoritative.
     return proc.stdout.strip() if proc.returncode == 0 else None
+
+
+def main_checkout(cwd):
+    """The repo's primary working tree, or None if `cwd` isn't in a repo.
+
+    Every worktree shares one common git dir, so resolving to the main
+    checkout means a marker file placed there governs all of them -- no
+    per-worktree copy to keep in sync, and nothing to commit.
+    """
+    common = git(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd)
+    if not common:
+        return None
+    return os.path.dirname(os.path.normpath(common))
+
+
+def base_merges_allowed(cwd):
+    """True if this repo opted out of the no-merge-to-base rule."""
+    root = main_checkout(cwd)
+    return bool(root) and os.path.exists(os.path.join(root, OPT_OUT_MARKER))
 
 
 def resolve_cwd(cwd, path):

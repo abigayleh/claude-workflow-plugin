@@ -1,7 +1,7 @@
 ---
 name: git-workflow
-description: Worktree-per-change git flow — create a worktree and branch for a feature or bug, commit to it, rebase onto the base branch, push, and hand off a pull request. Use when starting any new feature or bug fix, and when finishing one. Covers worktree setup, branch naming, safe rebasing, conflict handling, and the PR handoff. Claude never merges to the base branch.
-when_to_use: Starting a feature or bug fix; asked to branch, add a worktree, rebase, or push; finishing a change that needs to reach a pull request.
+description: Worktree-per-change git flow — create a worktree and branch for a feature or bug, commit to it, rebase onto the base branch, push, and hand off a pull request. Use when starting any new feature or bug fix, and when finishing one. Covers worktree setup, branch naming, safe rebasing, conflict handling, and the PR handoff. Claude never merges to the base branch unless the repo opted out with .claude/allow-merge-to-base.
+when_to_use: Starting a feature or bug fix; asked to branch, add a worktree, rebase, merge, or push; finishing a change that needs to reach a pull request or land on the base branch.
 argument-hint: "[start <short-description> | finish]"
 allowed-tools: Bash, Read
 ---
@@ -14,6 +14,18 @@ procedure.
 **The boundary: you take work to ready-for-PR and stop.** You never commit to
 the base branch, never push to it, and never merge into it. Three hooks enforce
 this. If one blocks you, it is working correctly — don't route around it.
+
+**Unless the repo opted out.** A repo with `.claude/allow-merge-to-base` in its
+main checkout has said the pull request is ceremony it doesn't want — solo
+project, no reviewer on the other side. There, finish by merging instead of
+handing off. Check once, at the start:
+
+```bash
+test -f "$(git rev-parse --path-format=absolute --git-common-dir)/../.claude/allow-merge-to-base"
+```
+
+Pushing to the base is still blocked either way, so merged work stays local
+until the user pushes it themselves. Say so when you hand back.
 
 ## Finding the base branch
 
@@ -122,10 +134,30 @@ tracking ref without integrating — `--force-if-includes` covers that.
 
 No remote? Skip the push, say so, and report the branch name instead.
 
+## Finishing: merge, in an opted-out repo
+
+Only when the marker above is present. Rebase onto the *current* base first —
+it moves — then confirm the main checkout is where you think it is, in one
+command, and abort unless it is:
+
+```bash
+git -C ../<repo> branch --show-current && git -C ../<repo> rev-parse HEAD
+git -C ../<repo> merge --ff-only feat/short-description
+```
+
+`--ff-only` refuses if the base moved again: rebase again and retry rather than
+forcing it. Then clean up after yourself — the merge keeps every commit, so
+removing the worktree only discards the folder:
+
+```bash
+git worktree remove ../<repo>-feat-short-description
+git branch -d feat/short-description      # -d, never -D
+```
+
 ## Handing off the pull request
 
-**This is where you stop.** Report what landed on the branch and give the user
-the command:
+**Everywhere else, this is where you stop.** Report what landed on the branch
+and give the user the command:
 
 ```bash
 gh pr create --base <base> --head <branch> --title "type: summary" --body "..."

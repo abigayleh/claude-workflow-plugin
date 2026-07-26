@@ -15,6 +15,11 @@ matters is the destination, not the argument. Two forms have to be caught:
 _gitcmd.walk handles both. `git pull` is deliberately NOT blocked: pulling the
 base branch from its own remote is a fast-forward of someone else's already
 reviewed work, not this agent landing its own.
+
+A repo opts out by creating `.claude/allow-merge-to-base` in its main checkout
+-- for the solo case where a pull request is ceremony with nobody on the other
+side of it. The marker is read through git's common dir, so one file covers
+every worktree of that repo and there is nothing to commit or keep in sync.
 """
 import shlex
 import sys
@@ -49,6 +54,8 @@ def blocked_reason(hit):
         protected.add(base)
     if dest not in protected:
         return None
+    if G.base_merges_allowed(hit["cwd"]):
+        return None                     # repo opted out via .claude/allow-merge-to-base
 
     return (
         "Merging into '%s' is blocked. This plugin takes work to ready-for-PR and "

@@ -7,7 +7,8 @@ advisory**.
 
 The pipeline takes a feature from spec to ready-for-PR and stops. It never
 merges to the base branch — that decision stays with a human, in a pull request
-they open.
+they open. Solo repos that don't want the ceremony can opt out per-repo with a
+marker file; pushing to the base stays blocked either way.
 
 ```
 worktree → detect stack → implement → verify → review → fix loop
@@ -65,7 +66,7 @@ handed back at the end).
 Verify the guards are firing in your Claude Code version:
 
 ```bash
-python3 hooks/selftest.py     # 30 cases; exits non-zero on any failure
+python3 hooks/selftest.py     # 42 cases; exits non-zero on any failure
 ```
 
 ---
@@ -106,13 +107,13 @@ with the implementation worth anything.
 |---|---|
 | `check-commit-msg.py` | Commit bodies, multiple `-m`, messages from files, missing type prefix, commits on the base branch |
 | `guard-push-main.py` | Pushes to the base branch, including `--all`/`--mirror` and `feat/x:main` refspecs |
-| `guard-merge-main.py` | Any merge landing on the base branch |
+| `guard-merge-main.py` | Any merge landing on the base branch, unless the repo opted out |
 | `guard-agent-writes.py` | Read-only agents writing anywhere but their own memory directory |
 
-All four **fail open**: if the command can't be parsed or the base branch can't
-be determined unambiguously, the operation is allowed. A guard that blocks
-legitimate work gets switched off by its user, at which point it protects
-nothing.
+The three git guards **fail open**: if the command can't be parsed or the base
+branch can't be determined unambiguously, the operation is allowed. A guard
+that blocks legitimate work gets switched off by its user, at which point it
+protects nothing.
 
 They also parse harder than a substring match. Each resolves the repo and branch
 the command *actually targets* — through `cd`, through git's own `-C`, and
@@ -122,6 +123,40 @@ through a `git switch` earlier in the same compound command:
 git switch main && git merge feat/x      # blocked: HEAD is still feat/x at hook time
 git -C ../other-checkout commit -m "..."  # judged against ../other-checkout, not cwd
 ```
+
+### Write grants
+
+`guard-agent-writes.py` is the one hook that answers **allow** as well as deny.
+A permission prompt that is always answered the same way trains the habit of
+answering it without reading it, so the writes this workflow makes constantly
+don't raise one:
+
+| Write | Decision |
+|---|---|
+| Read-only agent, outside its memory directory | **deny** |
+| File in a repo checked out on a feature branch | **allow**, no prompt |
+| File matching a test path or naming convention | **allow**, no prompt |
+| Anything else — on the base branch, or in no repo at all | normal prompt |
+
+The deny is evaluated first, so a grant can never widen an agent meant to be
+read-only. Unlike the git guards this one fails **closed**, to a prompt, since
+the unsafe direction here is granting rather than blocking. Nothing it grants
+can reach the base branch without passing the other three guards.
+
+### Opting out of the merge block
+
+`guard-merge-main.py` is the firmest rule here, but a solo project has no
+reviewer on the other side of the pull request. Create the marker in a repo's
+main checkout and `git-workflow` finishes by merging and removing the worktree
+instead of handing off a PR:
+
+```bash
+mkdir -p .claude && touch .claude/allow-merge-to-base
+```
+
+It's read through git's common dir, so one file covers every worktree of that
+repo — nothing to commit, nothing to keep in sync. **Pushing to the base stays
+blocked regardless**, so merged work is local until you push it yourself.
 
 ### Conventions
 
@@ -192,8 +227,11 @@ writing code. Exception: changes under ~30 lines in a single file.
 
 ## Recommended permissions
 
-The plugin deliberately ships **no** permission grants — that's a user decision.
-One trap worth naming:
+The plugin ships **no** entries in your `permissions` block — that's a user
+decision. The only grants it makes are the narrow, conditional ones
+`guard-agent-writes.py` decides at call time, described above; they apply where
+the workflow already isolates the change, and expire the moment you're back on
+the base branch. One trap worth naming:
 
 ```jsonc
 {
@@ -219,7 +257,7 @@ skills/                      8 skills (one folder each, SKILL.md inside)
 hooks/
   hooks.json                 Event wiring
   _gitcmd.py                 Shared git-command parsing for the three git guards
-  selftest.py                30 allow/deny cases against real throwaway repos
+  selftest.py                42 allow/deny/grant cases against real throwaway repos
 conventions/                 6 shared standards documents
 scripts/
   detect-stack.py            Project → real test/lint/build/dev commands, as JSON
