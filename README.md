@@ -48,14 +48,14 @@ comfortable lie. Every check is labelled with what it does and doesn't prove.
 ## Install
 
 ```bash
-/plugin marketplace add abigaylehickey/claude-workflow-plugin
+/plugin marketplace add abigayleh/claude-workflow-plugin
 /plugin install claude-workflow-plugin
 ```
 
 Or point Claude Code at a local clone:
 
 ```bash
-git clone https://github.com/abigaylehickey/claude-workflow-plugin
+git clone https://github.com/abigayleh/claude-workflow-plugin
 /plugin marketplace add ./claude-workflow-plugin
 ```
 
